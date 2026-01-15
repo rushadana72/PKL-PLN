@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Excel & Data
+*.xlsx
+*.csv
+master_data.py
+
+# Streamlit
+.streamlit/
