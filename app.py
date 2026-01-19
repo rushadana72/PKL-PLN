@@ -32,14 +32,62 @@ master_dict = load_master_data_lokal()
 if 'df_hasil' not in st.session_state:
     st.session_state['df_hasil'] = None
 
-# --- 3. SIDEBAR ---
+# --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
     st.header("Settings")
-    new_master = st.file_uploader("Update Database (CSV)", type=['csv'])
+    # Sekarang mendukung xlsx
+    new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
+    
     if new_master and st.button("Refresh Database"):
-        if update_master_script(new_master):
-            st.success("Database Updated!")
-            st.rerun()
+        try:
+            if new_master.name.endswith('.xlsx'):
+                # Membaca sheet khusus "MASTER MATERIAL"
+                df_master_new = pd.read_excel(new_master, sheet_name="MASTER MATERIAL")
+            else:
+                df_master_new = pd.read_csv(new_master)
+            
+            # Validasi kolom sesuai file yang Anda upload (Nama, Kode, Tipe)
+            kolom_wajib = ['Nama', 'Kode', 'Tipe']
+            if all(k in df_master_new.columns for k in kolom_wajib):
+                # Konversi ke format dictionary MASTER_LIST
+                new_dict = {}
+                for _, row in df_master_new.iterrows():
+                    new_dict[str(row['Nama']).strip()] = {
+                        'Kode': str(row['Kode']).strip(),
+                        'Tipe': str(row['Tipe']).strip()
+                    }
+                
+                # Simpan ke file master_data.py
+                with open("master_data.py", "w", encoding="utf-8") as f:
+                    f.write(f"MASTER_LIST = {repr(new_dict)}")
+                
+                st.success("Database 'MASTER MATERIAL' Berhasil Diperbarui!")
+                st.rerun()
+            else:
+                st.error(f"Kolom tidak sesuai. Pastikan ada kolom: {', '.join(kolom_wajib)}")
+        except Exception as e:
+            if "Worksheet named 'MASTER MATERIAL' not found" in str(e):
+                st.error("Error: Sheet 'MASTER MATERIAL' tidak ditemukan di file ini.")
+            else:
+                st.error(f"Terjadi kesalahan: {e}")
+
+# --- UPDATE PADA BAGIAN PRE-PROCESSING TAMPILAN (Agar lebih akurat) ---
+if st.session_state['df_hasil'] is not None:
+    df_display = st.session_state['df_hasil'].copy()
+    
+    # Daftar kolom sesuai gambar terakhir Anda
+    kolom_angka = [
+        'Referensi Jumlah', 
+        'Jumlah Material Gudang (PLN)', 
+        'Jumlah Material Dipesan (Tunai)', 
+        'Jumlah Pasang', 
+        'Jumlah Bongkar'
+    ]
+    
+    for col in kolom_angka:
+        if col in df_display.columns:
+            # Pastikan kolom adalah numerik sebelum di-replace ke None
+            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').replace(0, None)
 
 # --- 4. MAIN AREA: KONVERSI ---
 st.title("🛠️ SOSYS Material Automation")
