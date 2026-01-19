@@ -35,47 +35,52 @@ if 'df_hasil' not in st.session_state:
 # --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
     st.header("Settings")
-    # Sekarang mendukung xlsx
+    # Sekarang mendukung file Excel (.xlsx) dan CSV
     new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
     
     if new_master and st.button("Refresh Database"):
         try:
+            # Logika pembacaan file berdasarkan ekstensi
             if new_master.name.endswith('.xlsx'):
-                # Membaca sheet khusus "MASTER MATERIAL"
+                # Membaca spesifik sheet "MASTER MATERIAL"
                 df_master_new = pd.read_excel(new_master, sheet_name="MASTER MATERIAL")
             else:
                 df_master_new = pd.read_csv(new_master)
             
-            # Validasi kolom sesuai file yang Anda upload (Nama, Kode, Tipe)
+            # Validasi kolom sesuai file Master.xlsx Anda
             kolom_wajib = ['Nama', 'Kode', 'Tipe']
             if all(k in df_master_new.columns for k in kolom_wajib):
-                # Konversi ke format dictionary MASTER_LIST
+                # Konversi ke format dictionary MASTER_LIST untuk master_data.py
                 new_dict = {}
                 for _, row in df_master_new.iterrows():
-                    new_dict[str(row['Nama']).strip()] = {
+                    # Menghilangkan spasi tambahan agar re-lookup akurat
+                    nama_key = str(row['Nama']).strip()
+                    new_dict[nama_key] = {
                         'Kode': str(row['Kode']).strip(),
                         'Tipe': str(row['Tipe']).strip()
                     }
                 
-                # Simpan ke file master_data.py
+                # Simpan permanen ke file lokal master_data.py
                 with open("master_data.py", "w", encoding="utf-8") as f:
                     f.write(f"MASTER_LIST = {repr(new_dict)}")
                 
-                st.success("Database 'MASTER MATERIAL' Berhasil Diperbarui!")
+                st.success("✅ Database 'MASTER MATERIAL' berhasil diperbarui!")
                 st.rerun()
             else:
-                st.error(f"Kolom tidak sesuai. Pastikan ada kolom: {', '.join(kolom_wajib)}")
+                st.error(f"❌ Kolom tidak sesuai. Pastikan sheet memiliki kolom: {', '.join(kolom_wajib)}")
+        
         except Exception as e:
+            # Penanganan jika sheet tidak ditemukan
             if "Worksheet named 'MASTER MATERIAL' not found" in str(e):
-                st.error("Error: Sheet 'MASTER MATERIAL' tidak ditemukan di file ini.")
+                st.error("⚠️ Error: Sheet 'MASTER MATERIAL' tidak ditemukan dalam file ini.")
             else:
-                st.error(f"Terjadi kesalahan: {e}")
+                st.error(f"❌ Terjadi kesalahan: {e}")
 
-# --- UPDATE PADA BAGIAN PRE-PROCESSING TAMPILAN (Agar lebih akurat) ---
+# --- UPDATE PADA BAGIAN DISPLAY TABEL (DI MAIN AREA) ---
 if st.session_state['df_hasil'] is not None:
     df_display = st.session_state['df_hasil'].copy()
     
-    # Daftar kolom sesuai gambar terakhir Anda
+    # Kolom jumlah sesuai format SOSYS Anda
     kolom_angka = [
         'Referensi Jumlah', 
         'Jumlah Material Gudang (PLN)', 
@@ -86,8 +91,16 @@ if st.session_state['df_hasil'] is not None:
     
     for col in kolom_angka:
         if col in df_display.columns:
-            # Pastikan kolom adalah numerik sebelum di-replace ke None
+            # Paksa menjadi numerik lalu ubah 0 menjadi None agar terlihat kosong di web
             df_display[col] = pd.to_numeric(df_display[col], errors='coerce').replace(0, None)
+
+    # Render editor dengan data yang sudah bersih dari angka 0
+    edited_df = st.data_editor(
+        df_display,
+        num_rows="dynamic",
+        key="editor_sosys",
+        use_container_width=True
+    )
 
 # --- 4. MAIN AREA: KONVERSI ---
 st.title("🛠️ SOSYS Material Automation")
