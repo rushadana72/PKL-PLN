@@ -35,46 +35,33 @@ if 'df_hasil' not in st.session_state:
 # --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
     st.header("Settings")
-    # Sekarang mendukung file Excel (.xlsx) dan CSV
     new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
     
     if new_master and st.button("Refresh Database"):
         try:
-            # Logika pembacaan file berdasarkan ekstensi
             if new_master.name.endswith('.xlsx'):
-                # Membaca spesifik sheet "MASTER MATERIAL"
+                # Target spesifik sheet "MASTER MATERIAL"
                 df_master_new = pd.read_excel(new_master, sheet_name="MASTER MATERIAL")
             else:
                 df_master_new = pd.read_csv(new_master)
             
-            # Validasi kolom sesuai file Master.xlsx Anda
-            kolom_wajib = ['Nama', 'Kode', 'Tipe']
-            if all(k in df_master_new.columns for k in kolom_wajib):
-                # Konversi ke format dictionary MASTER_LIST untuk master_data.py
-                new_dict = {}
-                for _, row in df_master_new.iterrows():
-                    # Menghilangkan spasi tambahan agar re-lookup akurat
-                    nama_key = str(row['Nama']).strip()
-                    new_dict[nama_key] = {
-                        'Kode': str(row['Kode']).strip(),
-                        'Tipe': str(row['Tipe']).strip()
-                    }
-                
-                # Simpan permanen ke file lokal master_data.py
-                with open("master_data.py", "w", encoding="utf-8") as f:
-                    f.write(f"MASTER_LIST = {repr(new_dict)}")
-                
-                st.success("✅ Database 'MASTER MATERIAL' berhasil diperbarui!")
-                st.rerun()
-            else:
-                st.error(f"❌ Kolom tidak sesuai. Pastikan sheet memiliki kolom: {', '.join(kolom_wajib)}")
-        
+            # Gunakan kolom Nama, Kode, dan Tipe sesuai file Master.xlsx Anda
+            new_dict = {}
+            for _, row in df_master_new.iterrows():
+                nama_key = str(row['Nama']).strip()
+                new_dict[nama_key] = {
+                    'Kode': str(row['Kode']).strip(),
+                    'Tipe': str(row['Tipe']).strip()
+                }
+            
+            # Simpan ke master_data.py
+            with open("master_data.py", "w", encoding="utf-8") as f:
+                f.write(f"MASTER_LIST = {repr(new_dict)}")
+            
+            st.success("✅ Database 'MASTER MATERIAL' Updated!")
+            st.rerun()
         except Exception as e:
-            # Penanganan jika sheet tidak ditemukan
-            if "Worksheet named 'MASTER MATERIAL' not found" in str(e):
-                st.error("⚠️ Error: Sheet 'MASTER MATERIAL' tidak ditemukan dalam file ini.")
-            else:
-                st.error(f"❌ Terjadi kesalahan: {e}")
+            st.error(f"Terjadi kesalahan: {e}")
 
 # --- UPDATE PADA BAGIAN DISPLAY TABEL (DI MAIN AREA) ---
 if st.session_state['df_hasil'] is not None:
@@ -180,7 +167,7 @@ if uploaded_vendor:
         edited_df = st.data_editor(
             df_display,
             num_rows="dynamic",
-            key="editor_sosys",
+            key=f"editor_sosys_{sheet_name}", # Key menjadi dinamis
             use_container_width=True
         )
 
