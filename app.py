@@ -81,25 +81,54 @@ if uploaded_vendor:
             'c_total': huruf_ke_angka(h_total)
         }
         
-        # Simpan ke session_state
-        st.session_state['df_hasil'] = proses_data_vendor(df_v, master_dict, config)
+        # 1. Jalankan proses original
+        df_hasil = proses_data_vendor(df_v, master_dict, config)
+        
+        # 2. JANGAN gunakan .replace(0, None) di sini karena bisa merusak tipe data
+        # Biarkan angka 0 tetap ada di memori session_state untuk keamanan data
+        st.session_state['df_hasil'] = df_hasil
 
     # Tampilan Tabel Hasil Konversi
     if st.session_state['df_hasil'] is not None:
         st.success(f"Berhasil! {len(st.session_state['df_hasil'])} item ditemukan.")
         st.info("💡 Perbaiki typo pada 'Nama Material' lalu tekan Enter untuk update otomatis.")
         
+        # --- 1. PRE-PROCESSING UNTUK TAMPILAN (MENGOSONGKAN 0) ---
+        # Kita buat copy agar data asli di session_state tidak berubah tipe datanya
+        df_display = st.session_state['df_hasil'].copy()
+        
+        # Daftar semua kolom yang ingin dibersihkan dari angka 0
+        kolom_angka = [
+            'Referensi Jumlah', 
+            'Jumlah Material Gudang (PLN)', 
+            'Jumlah Material Dipesan (Tunai)', 
+            'Jumlah Pasang', 
+            'Jumlah Bongkar',
+            'Volume MAT', 
+            'Volume PSG', 
+            'Volume BKR'
+        ]
+        
+        for col in kolom_angka:
+            if col in df_display.columns:
+                # Mengubah angka 0 menjadi None agar sel terlihat kosong/blank di Streamlit
+                df_display[col] = df_display[col].replace(0, None)
+
+        # --- 2. TAMPILKAN EDITOR ---
+        # Gunakan df_display yang sudah bersih dari angka 0
         edited_df = st.data_editor(
-            st.session_state['df_hasil'],
+            df_display,
             num_rows="dynamic",
             key="editor_sosys",
             use_container_width=True
         )
 
-        # Logika Re-lookup instan
-        perubahan_terjadi = False
+        # --- 3. LOGIKA RE-LOOKUP OTOMATIS ---
+        perubahan_terjadi = False 
+        
         for index, row in edited_df.iterrows():
             nama_input = str(row['Nama Material']).strip()
+            
             target_kode = master_dict.get(nama_input, {}).get('Kode', "-")
             target_tipe = master_dict.get(nama_input, {}).get('Tipe', "-")
             
@@ -109,16 +138,19 @@ if uploaded_vendor:
                 perubahan_terjadi = True
         
         if perubahan_terjadi:
+            # Simpan kembali ke session_state agar perubahan permanen
             st.session_state['df_hasil'] = edited_df
             st.rerun()
         
+        # --- 4. LOGIKA DOWNLOAD ---
         towrite = io.BytesIO()
+        # Pastikan saat di-download, sel yang None tetap menjadi sel kosong di Excel
         edited_df.to_excel(towrite, index=False, engine='openpyxl')
         towrite.seek(0)
         st.download_button(
-            "📥 Download Hasil Perbaikan", 
+            "📥 Download Template", 
             towrite, 
-            f"SOSYS_{sheet_name}.xlsx",
+            f"{sheet_name}.xlsx",
             key="btn_download_final"
         )
 
@@ -132,16 +164,15 @@ with st.expander("📂 Lihat Database Master Material", expanded=False):
         
         col_m1, col_m2 = st.columns(2)
         col_m1.metric("Total Material", len(df_master))
-        
+        st.success("Cukup klik sekali pada cell, lalu tekan ctrl + c untuk copy")
         cari = st.text_input("🔍 Cari di Database:", "", key="cari_database_bawah")
         if cari:
             df_display = df_master[
-                df_master['Nama Material'].str.contains(cari, case=False) | 
-                df_master['Kode Material'].str.contains(cari, case=False)
+                df_master['Nama Material'].str.contains(cari, case=False, regex=False) | 
+                df_master['Kode Material'].str.contains(cari, case=False, regex=False)
             ]
         else:
             df_display = df_master
-
         st.dataframe(df_display, use_container_width=True, height=400)
     else:
         st.warning("Database kosong.")
