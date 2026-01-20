@@ -35,239 +35,134 @@ if 'df_hasil' not in st.session_state:
 # --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
     st.header("Pengaturan")
-    st.subheader("Upload Master Material")
     new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
     
     if new_master and st.button("Refresh Database"):
         try:
             if new_master.name.endswith('.xlsx'):
-                # Target spesifik sheet "MASTER MATERIAL"
                 df_master_new = pd.read_excel(new_master, sheet_name="MASTER MATERIAL")
             else:
                 df_master_new = pd.read_csv(new_master)
             
-            # Gunakan kolom Nama, Kode, dan Tipe sesuai file Master.xlsx Anda
-            new_dict = {}
-            for _, row in df_master_new.iterrows():
-                nama_key = str(row['Nama']).strip()
-                new_dict[nama_key] = {
-                    'Kode': str(row['Kode']).strip(),
-                    'Tipe': str(row['Tipe']).strip()
-                }
-            
-            # Simpan ke master_data.py
-            with open("master_data.py", "w", encoding="utf-8") as f:
-                f.write(f"MASTER_LIST = {repr(new_dict)}")
-            
-            st.success("✅ Database 'MASTER MATERIAL' Updated!")
-            st.rerun()
+            kolom_wajib = ['Nama', 'Kode', 'Tipe']
+            if all(k in df_master_new.columns for k in kolom_wajib):
+                new_dict = {}
+                for _, row in df_master_new.iterrows():
+                    new_dict[str(row['Nama']).strip()] = {
+                        'Kode': str(row['Kode']).strip(),
+                        'Tipe': str(row['Tipe']).strip()
+                    }
+                with open("master_data.py", "w", encoding="utf-8") as f:
+                    f.write(f"MASTER_LIST = {repr(new_dict)}")
+                st.success("✅ Database Updated!")
+                st.rerun()
+            else:
+                st.error(f"Kolom wajib tidak ditemukan: {kolom_wajib}")
         except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
+            st.error(f"Error: {e}")
 
-# --- UPDATE PADA BAGIAN DISPLAY TABEL (DI MAIN AREA) ---
-if st.session_state['df_hasil'] is not None:
-    df_display = st.session_state['df_hasil'].copy()
-    
-    # Kolom jumlah sesuai format SOSYS Anda
-    kolom_angka = [
-        'Referensi Jumlah', 
-        'Jumlah Material Gudang (PLN)', 
-        'Jumlah Material Dipesan (Tunai)', 
-        'Jumlah Pasang', 
-        'Jumlah Bongkar'
-    ]
-    
-    for col in kolom_angka:
-        if col in df_display.columns:
-            # Paksa menjadi numerik lalu ubah 0 menjadi None agar terlihat kosong di web
-            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').replace(0, None)
+st.title("Excel to SOSYS Template")
 
-    # Render editor dengan data yang sudah bersih dari angka 0
-    edited_df = st.data_editor(
-        df_display,
-        num_rows="dynamic",
-        key="editor_sosys",
-        use_container_width=True
-    )
+# --- 4. INPUT FILE VENDOR & DROPDOWN SHEET ---
+uploaded_file = st.file_uploader("Upload File Vendor (Excel)", type=["xlsx"])
 
-# --- 4. MAIN AREA: KONVERSI ---
-st.title("🛠️ SOSYS Material Automation")
-st.subheader("SILAHKAN MASUKAN FILE VENDOR")
-uploaded_vendor = st.file_uploader("Upload File Vendor (Excel)", type=['xlsx'])
+selected_sheet = None
+if uploaded_file:
+    try:
+        # Menggunakan openpyxl untuk membaca daftar sheet
+        wb = openpyxl.load_workbook(uploaded_file, read_only=True)
+        # Ambil hanya sheet yang terlihat (tidak hidden)
+        sheet_names = [sheet for sheet in wb.sheetnames if wb[sheet].sheet_state == 'visible']
+        selected_sheet = st.selectbox("🎯 Pilih Sheet Vendor:", sheet_names)
+    except Exception as e:
+        st.error(f"Gagal membaca daftar sheet: {e}")
 
-if uploaded_vendor:
-    wb = openpyxl.load_workbook(uploaded_vendor, read_only=True)
-    sheet_tertampil = [s.title for s in wb.worksheets if s.sheet_state == 'visible']
-    wb.close()
-
-    if not sheet_tertampil:
-        st.error("Tidak ada sheet yang terlihat di file ini.")
-        st.stop()
-
-    sheet_name = st.selectbox("Pilih Sheet Vendor:", sheet_tertampil)
-    
-    st.divider()
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        h_uraian = st.text_input("Kolom Nama Material", "C")
-        h_mat = st.text_input("Kolom Volume MAT", "H")
-    with col2:
-        h_psg = st.text_input("Kolom Volume PSG", "I")
-        h_bkr = st.text_input("Kolom Volume BKR", "J")
-    with col3:
-        h_satuan = st.text_input("Kolom Harga Satuan", "L")
-        h_total = st.text_input("Kolom Total Harga", "R")
-    
-    if st.button("Proses Data", key="btn_proses_utama"):
-        df_v = pd.read_excel(uploaded_vendor, sheet_name=sheet_name, skiprows=6, header=None)
-        
-        config = {
-            'c_uraian': huruf_ke_angka(h_uraian),
-            'c_mat': huruf_ke_angka(h_mat),
-            'c_psg': huruf_ke_angka(h_psg),
-            'c_bkr': huruf_ke_angka(h_bkr),
-            'c_satuan': huruf_ke_angka(h_satuan),
-            'c_total': huruf_ke_angka(h_total)
-        }
-        
-        # 1. Jalankan proses original
-        df_hasil = proses_data_vendor(df_v, master_dict, config)
-        
-        # 2. JANGAN gunakan .replace(0, None) di sini karena bisa merusak tipe data
-        # Biarkan angka 0 tetap ada di memori session_state untuk keamanan data
+if uploaded_file and selected_sheet and st.button("Proses Data"):
+    with st.spinner('Memproses...'):
+        # Pastikan mengirim 3 argumen: file, kamus master, dan nama sheet
+        df_hasil = proses_data_vendor(uploaded_file, master_dict, selected_sheet)
         st.session_state['df_hasil'] = df_hasil
 
-    # Tampilan Tabel Hasil Konversi
-    if st.session_state['df_hasil'] is not None:
-        st.success(f"Berhasil! {len(st.session_state['df_hasil'])} item ditemukan.")
-        st.info("💡 Perbaiki typo pada 'Nama Material' lalu tekan Enter untuk update otomatis.")
-        
-        # --- 1. PRE-PROCESSING UNTUK TAMPILAN (MENGOSONGKAN 0) ---
-        # Kita buat copy agar data asli di session_state tidak berubah tipe datanya
-        df_display = st.session_state['df_hasil'].copy()
-        
-        # Daftar semua kolom yang ingin dibersihkan dari angka 0
-        kolom_angka = [
-            'Referensi Jumlah', 
-            'Jumlah Material Gudang (PLN)', 
-            'Jumlah Material Dipesan (Tunai)', 
-            'Jumlah Pasang', 
-            'Jumlah Bongkar',
-            'Volume MAT', 
-            'Volume PSG', 
-            'Volume BKR'
-        ]
-        
-        for col in kolom_angka:
-            if col in df_display.columns:
-                # Mengubah angka 0 menjadi None agar sel terlihat kosong/blank di Streamlit
-                df_display[col] = df_display[col].replace(0, None)
+# --- 5. TAMPILAN TABEL VENDOR ---
+if st.session_state['df_hasil'] is not None:
+    st.markdown("---")
+    st.subheader(f"📋 Hasil Konversi: {selected_sheet}")
+    
+    # Pre-processing tampilan (Mencegah modifikasi data asli di session_state)
+    df_vendor_view = st.session_state['df_hasil'].copy()
+    kolom_angka = ['Referensi Jumlah', 'Jumlah Material Gudang (PLN)', 'Jumlah Material Dipesan (Tunai)', 'Jumlah Pasang', 'Jumlah Bongkar']
+    
+    for col in kolom_angka:
+        if col in df_vendor_view.columns:
+            df_vendor_view[col] = pd.to_numeric(df_vendor_view[col], errors='coerce').replace(0, None)
 
-        # --- 2. TAMPILKAN EDITOR ---
-        # Gunakan df_display yang sudah bersih dari angka 0
-        edited_df = st.data_editor(
-            df_display,
-            num_rows="dynamic",
-            key=f"editor_sosys_{sheet_name}", # Key menjadi dinamis
-            use_container_width=True,
-            column_config={
-                "Kode Material": st.column_config.Column(
-                    "Kode Material",
-                    help="Kolom ini terkunci (otomatis dari Master)",
-                    disabled=True, # MENGUNCI KOLOM KODE
-                ),
-                "Tipe Material": st.column_config.Column(
-                    "Tipe Material",
-                    help="Kolom ini terkunci (otomatis dari Master)",
-                    disabled=True, # MENGUNCI KOLOM TIPE
-                ),
-            }
-        )
+    # Editor Tabel Vendor
+    edited_df = st.data_editor(
+        df_vendor_view,
+        num_rows="dynamic",
+        key=f"editor_vendor_{selected_sheet}", # Key unik agar tidak bentrok
+        use_container_width=True,
+        column_config={
+            "Kode Material": st.column_config.Column(disabled=True),
+            "Tipe Material": st.column_config.Column(disabled=True),
+        }
+    )
 
-        # --- 3. LOGIKA RE-LOOKUP OTOMATIS ---
-        perubahan_terjadi = False 
+    # Cek Perubahan untuk Re-lookup
+    perubahan_terjadi = False
+    for index, row in edited_df.iterrows():
+        nama_input = str(row['Nama Material']).strip()
+        target_kode = master_dict.get(nama_input, {}).get('Kode', "-")
+        target_tipe = master_dict.get(nama_input, {}).get('Tipe', "-")
         
-        for index, row in edited_df.iterrows():
-            nama_input = str(row['Nama Material']).strip()
-            
-            target_kode = master_dict.get(nama_input, {}).get('Kode', "-")
-            target_tipe = master_dict.get(nama_input, {}).get('Tipe', "-")
-            
-            if row['Kode Material'] != target_kode or row['Tipe Material'] != target_tipe:
-                edited_df.at[index, 'Kode Material'] = target_kode
-                edited_df.at[index, 'Tipe Material'] = target_tipe
-                perubahan_terjadi = True
-        
-        if perubahan_terjadi:
-            # Simpan kembali ke session_state agar perubahan permanen
-            st.session_state['df_hasil'] = edited_df
-            st.rerun()
-        
-       # --- LOGIKA DOWNLOAD FINAL (SINKRONISASI STRUKTUR) ---
-        towrite = io.BytesIO()
-        df_final_export = edited_df.copy()
-        
-        # Standarisasi data agar tidak ada objek yang menggantung
-        for col in kolom_angka:
-            if col in df_final_export.columns:
-                df_final_export[col] = pd.to_numeric(df_final_export[col], errors='coerce').replace(0, None)
+        if row['Kode Material'] != target_kode or row['Tipe Material'] != target_tipe:
+            edited_df.at[index, 'Kode Material'] = target_kode
+            edited_df.at[index, 'Tipe Material'] = target_tipe
+            perubahan_terjadi = True
+    
+    if perubahan_terjadi:
+        st.session_state['df_hasil'] = edited_df
+        st.rerun()
 
-        # Gunakan engine xlsxwriter jika ada, atau tetap openpyxl dengan penutupan sempurna
-        # xlsxwriter cenderung menghasilkan file yang lebih 'kompatibel' dengan sistem web
-        try:
-            writer_engine = 'xlsxwriter'
-            import xlsxwriter
-        except ImportError:
-            writer_engine = 'openpyxl'
+    # Logika Download (Engine XlsxWriter agar kompatibel SOSYS)
+    towrite = io.BytesIO()
+    with pd.ExcelWriter(towrite, engine='xlsxwriter') as writer:
+        edited_df.to_excel(writer, index=False, sheet_name=selected_sheet[:31])
+    
+    st.download_button(
+        "📥 Download Template", 
+        towrite.getvalue(), 
+        f"{selected_sheet}.xlsx", 
+        key="btn_download_final"
+    )
 
-        with pd.ExcelWriter(towrite, engine=writer_engine) as writer:
-            df_final_export.to_excel(writer, index=False, sheet_name=sheet_name)
-            
-            # Jika menggunakan openpyxl, kita paksa sinkronisasi workbook
-            if writer_engine == 'openpyxl':
-                workbook = writer.book
-                # Mengatur status file menjadi 'Final' agar tidak dianggap stream menggantung
-                workbook.properties.contentStatus = "Final"
-                # Paksa kalkulasi ulang agar metadata sel terisi semua
-                workbook.calculation.fullCalcOnLoad = True
-
-        # PENTING: Pastikan stream benar-benar siap
-        file_data = towrite.getvalue()
-        
-        st.download_button(
-            "📥 Download Template", 
-            file_data, # Mengirimkan bytes hasil getvalue() lebih stabil daripada towrite langsung
-            f"{sheet_name}.xlsx", 
-            key="btn_download_final"
-        )
-
-# --- 5. BAGIAN PALING BAWAH: DATABASE MASTER ---
+# --- 6. BAGIAN DATABASE MASTER (DIISOLASI AGAR TIDAK MUNCUL 2 TABEL) ---
 st.markdown("---")
 
-# Cek apakah pengguna sedang mencari sesuatu agar expander tetap terbuka
-is_searching = st.session_state.get('cari_database_bawah', "") != ""
+# Mengunci Expander jika sedang mencari
+if 'input_cari' not in st.session_state:
+    st.session_state['input_cari'] = ""
+
+is_searching = st.session_state['input_cari'] != ""
 
 with st.expander("📂 Lihat Database Master Material", expanded=is_searching):
     st.subheader("Data Referensi Sistem")
     if master_dict:
-        df_master = pd.DataFrame.from_dict(master_dict, orient='index').reset_index()
-        df_master.columns = ['Nama Material', 'Kode Material', 'Tipe Material']
+        # MENGGUNAKAN NAMA VARIABEL BERBEDA (df_master_db) AGAR TIDAK BENTROK DENGAN df_display
+        df_master_db = pd.DataFrame.from_dict(master_dict, orient='index').reset_index()
+        df_master_db.columns = ['Nama Material', 'Kode Material', 'Tipe Material']
         
-        col_m1, col_m2 = st.columns(2)
-        col_m1.metric("Total Material", len(df_master))
+        st.info("💡 Klik sel lalu **Ctrl+C** untuk copy nama yang benar.")
         
-        st.success("Cukup klik sekali pada cell, lalu tekan ctrl + c untuk copy")
-        
-        # Tambahkan label yang jelas dan jangan gunakan key yang memicu konflik
-        cari = st.text_input("🔍 Cari di Database:", key="cari_database_bawah")
+        # Search Box dengan key session_state
+        cari = st.text_input("🔍 Cari di Database:", key="input_cari")
         
         if cari:
-            # Filter data berdasarkan pencarian
-            df_filtered = df_master[
-                df_master['Nama Material'].str.contains(cari, case=False, regex=False) | 
-                df_master['Kode Material'].str.contains(cari, case=False, regex=False)
+            # Filter menggunakan variabel unik df_master_filtered
+            df_master_filtered = df_master_db[
+                df_master_db['Nama Material'].str.contains(cari, case=False, regex=False) | 
+                df_master_db['Kode Material'].str.contains(cari, case=False, regex=False)
             ]
-            st.dataframe(df_filtered, use_container_width=True)
+            st.dataframe(df_master_filtered, use_container_width=True, hide_index=True)
         else:
-            # Tampilkan 5 data awal saja jika tidak mencari agar tidak berat
-            st.dataframe(df_master.head(5), use_container_width=True)
+            st.dataframe(df_master_db.head(5), use_container_width=True, hide_index=True)
