@@ -203,15 +203,32 @@ if uploaded_vendor:
             st.session_state['df_hasil'] = edited_df
             st.rerun()
         
-        # --- 4. LOGIKA DOWNLOAD ---
+       # --- LOGIKA DOWNLOAD YANG DIPERBAIKI (AGAR LANGSUNG BISA IMPORT) ---
         towrite = io.BytesIO()
-        # Pastikan saat di-download, sel yang None tetap menjadi sel kosong di Excel
-        edited_df.to_excel(towrite, index=False, engine='openpyxl')
+        df_final_export = edited_df.copy()
+        
+        # 1. Pastikan kolom angka benar-benar bersih
+        for col in kolom_angka:
+            if col in df_final_export.columns:
+                df_final_export[col] = df_final_export[col].replace([0, "0", "None", None], None)
+
+        # 2. Gunakan ExcelWriter dengan engine openpyxl secara eksplisit
+        with pd.ExcelWriter(towrite, engine='openpyxl') as writer:
+            df_final_export.to_excel(writer, index=False, sheet_name=sheet_name)
+            
+            # Tambahkan metadata agar file tidak dianggap 'corrupt' oleh server SOSYS
+            workbook = writer.book
+            # Memaksa kalkulasi ulang formula saat file dibuka (opsional tapi membantu)
+            workbook.calculation.calcMode = 'auto'
+            workbook.calculation.fullCalcOnLoad = True
+
         towrite.seek(0)
+        
+        # 3. Download Button
         st.download_button(
             "📥 Download Template", 
             towrite, 
-            f"{sheet_name}.xlsx",
+            f"{sheet_name}.xlsx", 
             key="btn_download_final"
         )
 
