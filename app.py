@@ -34,7 +34,8 @@ if 'df_hasil' not in st.session_state:
 
 # --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
-    st.header("Settings")
+    st.header("Pengaturan")
+    st.subheader("Upload Master Material")
     new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
     
     if new_master and st.button("Refresh Database"):
@@ -91,7 +92,7 @@ if st.session_state['df_hasil'] is not None:
 
 # --- 4. MAIN AREA: KONVERSI ---
 st.title("🛠️ SOSYS Material Automation")
-
+st.subheader("SILAHKAN MASUKAN FILE VENDOR")
 uploaded_vendor = st.file_uploader("Upload File Vendor (Excel)", type=['xlsx'])
 
 if uploaded_vendor:
@@ -168,7 +169,19 @@ if uploaded_vendor:
             df_display,
             num_rows="dynamic",
             key=f"editor_sosys_{sheet_name}", # Key menjadi dinamis
-            use_container_width=True
+            use_container_width=True,
+            column_config={
+                "Kode Material": st.column_config.Column(
+                    "Kode Material",
+                    help="Kolom ini terkunci (otomatis dari Master)",
+                    disabled=True, # MENGUNCI KOLOM KODE
+                ),
+                "Tipe Material": st.column_config.Column(
+                    "Tipe Material",
+                    help="Kolom ini terkunci (otomatis dari Master)",
+                    disabled=True, # MENGUNCI KOLOM TIPE
+                ),
+            }
         )
 
         # --- 3. LOGIKA RE-LOOKUP OTOMATIS ---
