@@ -203,41 +203,41 @@ if uploaded_vendor:
             st.session_state['df_hasil'] = edited_df
             st.rerun()
         
-       # --- LOGIKA DOWNLOAD FINAL UNTUK BYPASS PROTECTED VIEW ---
+       # --- LOGIKA DOWNLOAD FINAL (SINKRONISASI STRUKTUR) ---
         towrite = io.BytesIO()
         df_final_export = edited_df.copy()
         
-        # Bersihkan data agar tidak ada tipe campuran yang bikin Error 500
+        # Standarisasi data agar tidak ada objek yang menggantung
         for col in kolom_angka:
             if col in df_final_export.columns:
                 df_final_export[col] = pd.to_numeric(df_final_export[col], errors='coerce').replace(0, None)
 
-        # Gunakan engine openpyxl dengan pengaturan metadata lengkap
-        with pd.ExcelWriter(towrite, engine='openpyxl') as writer:
+        # Gunakan engine xlsxwriter jika ada, atau tetap openpyxl dengan penutupan sempurna
+        # xlsxwriter cenderung menghasilkan file yang lebih 'kompatibel' dengan sistem web
+        try:
+            writer_engine = 'xlsxwriter'
+            import xlsxwriter
+        except ImportError:
+            writer_engine = 'openpyxl'
+
+        with pd.ExcelWriter(towrite, engine=writer_engine) as writer:
             df_final_export.to_excel(writer, index=False, sheet_name=sheet_name)
             
-            # Akses workbook untuk mengatur identitas file
-            workbook = writer.book
-            
-            # 1. Tambahkan Properti Dokumen agar tidak dianggap 'Unknown Source'
-            workbook.properties.creator = "SOSYS Automation"
-            workbook.properties.title = f"Template {sheet_name}"
-            workbook.properties.subject = "Automation Report"
-            
-            # 2. Paksa refresh data saat file dibuka oleh sistem SOSYS
-            workbook.calculation.calcMode = 'auto'
-            workbook.calculation.fullCalcOnLoad = True
-            
-            # 3. SET PROTECTED VIEW BYPASS (Set flag agar tidak 'read-only' di sistem tertentu)
-            workbook.security.lockRevision = False
-            workbook.security.lockStructure = False
+            # Jika menggunakan openpyxl, kita paksa sinkronisasi workbook
+            if writer_engine == 'openpyxl':
+                workbook = writer.book
+                # Mengatur status file menjadi 'Final' agar tidak dianggap stream menggantung
+                workbook.properties.contentStatus = "Final"
+                # Paksa kalkulasi ulang agar metadata sel terisi semua
+                workbook.calculation.fullCalcOnLoad = True
 
-        towrite.seek(0)
+        # PENTING: Pastikan stream benar-benar siap
+        file_data = towrite.getvalue()
         
         st.download_button(
             "📥 Download Template", 
-            towrite, 
-            f"{sheet_name}.xlsx", # Nama file murni sesuai nama sheet
+            file_data, # Mengirimkan bytes hasil getvalue() lebih stabil daripada towrite langsung
+            f"{sheet_name}.xlsx", 
             key="btn_download_final"
         )
 
