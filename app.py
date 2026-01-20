@@ -203,32 +203,41 @@ if uploaded_vendor:
             st.session_state['df_hasil'] = edited_df
             st.rerun()
         
-       # --- LOGIKA DOWNLOAD YANG DIPERBAIKI (AGAR LANGSUNG BISA IMPORT) ---
+       # --- LOGIKA DOWNLOAD FINAL UNTUK BYPASS PROTECTED VIEW ---
         towrite = io.BytesIO()
         df_final_export = edited_df.copy()
         
-        # 1. Pastikan kolom angka benar-benar bersih
+        # Bersihkan data agar tidak ada tipe campuran yang bikin Error 500
         for col in kolom_angka:
             if col in df_final_export.columns:
-                df_final_export[col] = df_final_export[col].replace([0, "0", "None", None], None)
+                df_final_export[col] = pd.to_numeric(df_final_export[col], errors='coerce').replace(0, None)
 
-        # 2. Gunakan ExcelWriter dengan engine openpyxl secara eksplisit
+        # Gunakan engine openpyxl dengan pengaturan metadata lengkap
         with pd.ExcelWriter(towrite, engine='openpyxl') as writer:
             df_final_export.to_excel(writer, index=False, sheet_name=sheet_name)
             
-            # Tambahkan metadata agar file tidak dianggap 'corrupt' oleh server SOSYS
+            # Akses workbook untuk mengatur identitas file
             workbook = writer.book
-            # Memaksa kalkulasi ulang formula saat file dibuka (opsional tapi membantu)
+            
+            # 1. Tambahkan Properti Dokumen agar tidak dianggap 'Unknown Source'
+            workbook.properties.creator = "SOSYS Automation"
+            workbook.properties.title = f"Template {sheet_name}"
+            workbook.properties.subject = "Automation Report"
+            
+            # 2. Paksa refresh data saat file dibuka oleh sistem SOSYS
             workbook.calculation.calcMode = 'auto'
             workbook.calculation.fullCalcOnLoad = True
+            
+            # 3. SET PROTECTED VIEW BYPASS (Set flag agar tidak 'read-only' di sistem tertentu)
+            workbook.security.lockRevision = False
+            workbook.security.lockStructure = False
 
         towrite.seek(0)
         
-        # 3. Download Button
         st.download_button(
             "📥 Download Template", 
             towrite, 
-            f"{sheet_name}.xlsx", 
+            f"{sheet_name}.xlsx", # Nama file murni sesuai nama sheet
             key="btn_download_final"
         )
 
