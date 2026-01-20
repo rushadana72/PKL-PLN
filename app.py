@@ -32,66 +32,37 @@ master_dict = load_master_data_lokal()
 if 'df_hasil' not in st.session_state:
     st.session_state['df_hasil'] = None
 
+
 # --- UPDATE DI BAGIAN SIDEBAR ---
 with st.sidebar:
     st.header("Pengaturan")
-    st.subheader("Upload Master Material")
     new_master = st.file_uploader("Update Database (Excel/CSV)", type=['xlsx', 'csv'])
     
     if new_master and st.button("Refresh Database"):
         try:
             if new_master.name.endswith('.xlsx'):
-                # Target spesifik sheet "MASTER MATERIAL"
                 df_master_new = pd.read_excel(new_master, sheet_name="MASTER MATERIAL")
             else:
                 df_master_new = pd.read_csv(new_master)
             
-            # Gunakan kolom Nama, Kode, dan Tipe sesuai file Master.xlsx Anda
-            new_dict = {}
-            for _, row in df_master_new.iterrows():
-                nama_key = str(row['Nama']).strip()
-                new_dict[nama_key] = {
-                    'Kode': str(row['Kode']).strip(),
-                    'Tipe': str(row['Tipe']).strip()
-                }
-            
-            # Simpan ke master_data.py
-            with open("master_data.py", "w", encoding="utf-8") as f:
-                f.write(f"MASTER_LIST = {repr(new_dict)}")
-            
-            st.success("✅ Database 'MASTER MATERIAL' Updated!")
-            st.rerun()
+            kolom_wajib = ['Nama', 'Kode', 'Tipe']
+            if all(k in df_master_new.columns for k in kolom_wajib):
+                new_dict = {}
+                for _, row in df_master_new.iterrows():
+                    new_dict[str(row['Nama']).strip()] = {
+                        'Kode': str(row['Kode']).strip(),
+                        'Tipe': str(row['Tipe']).strip()
+                    }
+                with open("master_data.py", "w", encoding="utf-8") as f:
+                    f.write(f"MASTER_LIST = {repr(new_dict)}")
+                st.success("✅ Database Updated!")
+                st.rerun()
+            else:
+                st.error(f"Kolom wajib tidak ditemukan: {kolom_wajib}")
         except Exception as e:
-            st.error(f"Terjadi kesalahan: {e}")
+            st.error(f"Error: {e}")
 
-# --- UPDATE PADA BAGIAN DISPLAY TABEL (DI MAIN AREA) ---
-if st.session_state['df_hasil'] is not None:
-    df_display = st.session_state['df_hasil'].copy()
-    
-    # Kolom jumlah sesuai format SOSYS Anda
-    kolom_angka = [
-        'Referensi Jumlah', 
-        'Jumlah Material Gudang (PLN)', 
-        'Jumlah Material Dipesan (Tunai)', 
-        'Jumlah Pasang', 
-        'Jumlah Bongkar'
-    ]
-    
-    for col in kolom_angka:
-        if col in df_display.columns:
-            # Paksa menjadi numerik lalu ubah 0 menjadi None agar terlihat kosong di web
-            df_display[col] = pd.to_numeric(df_display[col], errors='coerce').replace(0, None)
-
-    # Render editor dengan data yang sudah bersih dari angka 0
-    edited_df = st.data_editor(
-        df_display,
-        num_rows="dynamic",
-        key="editor_sosys",
-        use_container_width=True
-    )
-
-# --- 4. MAIN AREA: KONVERSI ---
-st.title("🛠️ SOSYS Material Automation")
+st.title("🛠️ :orange[SOMEON] SOSYS Material Automation")
 st.subheader("SILAHKAN MASUKAN FILE VENDOR")
 uploaded_vendor = st.file_uploader("Upload File Vendor (Excel)", type=['xlsx'])
 
@@ -137,126 +108,96 @@ if uploaded_vendor:
         # Biarkan angka 0 tetap ada di memori session_state untuk keamanan data
         st.session_state['df_hasil'] = df_hasil
 
-    # Tampilan Tabel Hasil Konversi
-    if st.session_state['df_hasil'] is not None:
-        st.success(f"Berhasil! {len(st.session_state['df_hasil'])} item ditemukan.")
-        st.info("💡 Perbaiki typo pada 'Nama Material' lalu tekan Enter untuk update otomatis.")
-        
-        # --- 1. PRE-PROCESSING UNTUK TAMPILAN (MENGOSONGKAN 0) ---
-        # Kita buat copy agar data asli di session_state tidak berubah tipe datanya
-        df_display = st.session_state['df_hasil'].copy()
-        
-        # Daftar semua kolom yang ingin dibersihkan dari angka 0
-        kolom_angka = [
-            'Referensi Jumlah', 
-            'Jumlah Material Gudang (PLN)', 
-            'Jumlah Material Dipesan (Tunai)', 
-            'Jumlah Pasang', 
-            'Jumlah Bongkar',
-            'Volume MAT', 
-            'Volume PSG', 
-            'Volume BKR'
-        ]
-        
-        for col in kolom_angka:
-            if col in df_display.columns:
-                # Mengubah angka 0 menjadi None agar sel terlihat kosong/blank di Streamlit
-                df_display[col] = df_display[col].replace(0, None)
+# --- 5. TAMPILAN TABEL VENDOR ---
+if st.session_state['df_hasil'] is not None:
+    st.markdown("---")
+    display_name = sheet_name if 'sheet_name' in locals() else 'data proses'
+    st.subheader(f"📋 Hasil Konversi: {display_name}")
+    
+    # Pre-processing tampilan (Mencegah modifikasi data asli di session_state)
+    df_vendor_view = st.session_state['df_hasil'].copy()
+    kolom_angka = ['Referensi Jumlah', 'Jumlah Material Gudang (PLN)', 'Jumlah Material Dipesan (Tunai)', 'Jumlah Pasang', 'Jumlah Bongkar']
+    
+    for col in kolom_angka:
+        if col in df_vendor_view.columns:
+            df_vendor_view[col] = pd.to_numeric(df_vendor_view[col], errors='coerce').replace(0, None)
 
-        # --- 2. TAMPILKAN EDITOR ---
-        # Gunakan df_display yang sudah bersih dari angka 0
-        edited_df = st.data_editor(
-            df_display,
-            num_rows="dynamic",
-            key=f"editor_sosys_{sheet_name}", # Key menjadi dinamis
-            use_container_width=True,
-            column_config={
-                "Kode Material": st.column_config.Column(
-                    "Kode Material",
-                    help="Kolom ini terkunci (otomatis dari Master)",
-                    disabled=True, # MENGUNCI KOLOM KODE
-                ),
-                "Tipe Material": st.column_config.Column(
-                    "Tipe Material",
-                    help="Kolom ini terkunci (otomatis dari Master)",
-                    disabled=True, # MENGUNCI KOLOM TIPE
-                ),
-            }
-        )
+    # Editor Tabel Vendor
+    edited_df = st.data_editor(
+        df_vendor_view,
+        num_rows="dynamic",
+        key=f"editor_vendor_{display_name}", # Key unik agar tidak bentrok
+        use_container_width=True,
+        column_config={
+            "Kode Material": st.column_config.Column(disabled=True),
+            "Tipe Material": st.column_config.Column(disabled=True),
+        }
+    )
 
-        # --- 3. LOGIKA RE-LOOKUP OTOMATIS ---
-        perubahan_terjadi = False 
+    # Cek Perubahan untuk Re-lookup
+    perubahan_terjadi = False
+    for index, row in edited_df.iterrows():
+        nama_input = str(row['Nama Material']).strip()
+        target_kode = master_dict.get(nama_input, {}).get('Kode', "-")
+        target_tipe = master_dict.get(nama_input, {}).get('Tipe', "-")
         
-        for index, row in edited_df.iterrows():
-            nama_input = str(row['Nama Material']).strip()
-            
-            target_kode = master_dict.get(nama_input, {}).get('Kode', "-")
-            target_tipe = master_dict.get(nama_input, {}).get('Tipe', "-")
-            
-            if row['Kode Material'] != target_kode or row['Tipe Material'] != target_tipe:
-                edited_df.at[index, 'Kode Material'] = target_kode
-                edited_df.at[index, 'Tipe Material'] = target_tipe
-                perubahan_terjadi = True
-        
-        if perubahan_terjadi:
-            # Simpan kembali ke session_state agar perubahan permanen
-            st.session_state['df_hasil'] = edited_df
-            st.rerun()
-        
-       # --- LOGIKA DOWNLOAD (Pastikan ini adalah akhir dari blok IF tabel vendor) ---
-        towrite = io.BytesIO()
-        df_final_export = edited_df.copy()
-        
-        # Bersihkan 0 agar tidak Error 500 di SOSYS
-        for col in kolom_angka:
-            if col in df_final_export.columns:
-                df_final_export[col] = pd.to_numeric(df_final_export[col], errors='coerce').replace(0, None)
+        if row['Kode Material'] != target_kode or row['Tipe Material'] != target_tipe:
+            edited_df.at[index, 'Kode Material'] = target_kode
+            edited_df.at[index, 'Tipe Material'] = target_tipe
+            perubahan_terjadi = True
+    
+    if perubahan_terjadi:
+        st.session_state['df_hasil'] = edited_df
+        st.rerun()
 
-        with pd.ExcelWriter(towrite, engine='xlsxwriter') as writer:
-            df_final_export.to_excel(writer, index=False, sheet_name=sheet_name)
-        
-        file_data = towrite.getvalue()
-        st.download_button(
-            "📥 Download Template", 
-            file_data, 
-            f"{sheet_name}.xlsx", 
-            key="btn_download_final"
-        )
+    # Logika Download (Engine XlsxWriter agar kompatibel SOSYS)
+    towrite = io.BytesIO()
+    with pd.ExcelWriter(towrite, engine='xlsxwriter') as writer:
+        edited_df.to_excel(writer, index=False, sheet_name=display_name[:31])
+    
+    st.download_button(
+        "📥 Download Template", 
+        towrite.getvalue(), 
+        f"{display_name}.xlsx", 
+        key="btn_download_final"
+    )
 
-# --- 5. BAGIAN PALING BAWAH: DATABASE MASTER (DI LUAR BLOK VENDOR) ---
+# --- 6. BAGIAN DATABASE MASTER (DIISOLASI AGAR TIDAK MUNCUL 2 TABEL) ---
 st.markdown("---")
 
-# Gunakan session_state untuk mengunci input agar tidak hilang saat rerun
-if 'cari_db' not in st.session_state:
-    st.session_state['cari_db'] = ""
+# Mengunci Expander jika sedang mencari
+if 'input_cari' not in st.session_state:
+    st.session_state['input_cari'] = ""
 
-# Logika: Expander otomatis terbuka jika user sedang mencari sesuatu
-is_searching = st.session_state['cari_db'] != ""
+is_searching = st.session_state['input_cari'] != ""
 
 with st.expander("📂 Lihat Database Master Material", expanded=is_searching):
     st.subheader("Data Referensi Sistem")
-    
     if master_dict:
-        # GUNAKAN NAMA VARIABEL BERBEDA (df_db) AGAR TIDAK BENTROK
-        df_db = pd.DataFrame.from_dict(master_dict, orient='index').reset_index()
-        df_db.columns = ['Nama Material', 'Kode Material', 'Tipe Material']
+
+        # Menampilkan metrik jumlah material agar tampilan lebih profesional
+        total_data = len(master_dict)
+        #st.metric(label="Total Material Terdata", value=f"{total_data} Item")
+        st.markdown(
+            f"### :orange[Total Material ] <span style='font-size: 40px; color: #39e75f;'>{total_data}</span> :orange[Item]", 
+            unsafe_allow_html=True
+        )
+
+        # MENGGUNAKAN NAMA VARIABEL BERBEDA (df_master_db) AGAR TIDAK BENTROK DENGAN df_display
+        df_master_db = pd.DataFrame.from_dict(master_dict, orient='index').reset_index()
+        df_master_db.columns = ['Nama Material', 'Kode Material', 'Tipe Material']
         
-        st.info("💡 Klik sel lalu **Ctrl+C** untuk copy nama. Gunakan ini untuk benerin tabel vendor di atas.")
+        st.info("💡 Klik sel lalu **Ctrl+C** untuk copy nama yang benar.")
         
-        # Input pencarian dengan key session_state
-        cari_keyword = st.text_input("🔍 Cari Nama atau Kode:", key="cari_db")
+        # Search Box dengan key session_state
+        cari = st.text_input("🔍 Cari di Database:", key="input_cari")
         
-        if cari_keyword:
-            # Filter pencarian pada variabel df_db_filtered
-            df_db_filtered = df_db[
-                df_db['Nama Material'].str.contains(cari_keyword, case=False, regex=False) | 
-                df_db['Kode Material'].str.contains(cari_keyword, case=False, regex=False)
+        if cari:
+            # Filter menggunakan variabel unik df_master_filtered
+            df_master_filtered = df_master_db[
+                df_master_db['Nama Material'].str.contains(cari, case=False, regex=False) | 
+                df_master_db['Kode Material'].str.contains(cari, case=False, regex=False)
             ]
-            
-            if not df_db_filtered.empty:
-                st.dataframe(df_db_filtered, use_container_width=True, hide_index=True)
-            else:
-                st.warning("Material tidak ditemukan.")
+            st.dataframe(df_master_filtered, use_container_width=True, hide_index=True)
         else:
-            # Tampilkan 10 data awal saja jika tidak mencari agar ringan
-            st.dataframe(df_db.head(10), use_container_width=True, hide_index=True)
+            st.dataframe(df_master_db.head(5), use_container_width=True, hide_index=True)
