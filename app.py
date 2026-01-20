@@ -243,7 +243,11 @@ if uploaded_vendor:
 
 # --- 5. BAGIAN PALING BAWAH: DATABASE MASTER ---
 st.markdown("---")
-with st.expander("📂 Lihat Database Master Material", expanded=False):
+
+# Cek apakah pengguna sedang mencari sesuatu agar expander tetap terbuka
+is_searching = st.session_state.get('cari_database_bawah', "") != ""
+
+with st.expander("📂 Lihat Database Master Material", expanded=is_searching):
     st.subheader("Data Referensi Sistem")
     if master_dict:
         df_master = pd.DataFrame.from_dict(master_dict, orient='index').reset_index()
@@ -251,15 +255,19 @@ with st.expander("📂 Lihat Database Master Material", expanded=False):
         
         col_m1, col_m2 = st.columns(2)
         col_m1.metric("Total Material", len(df_master))
+        
         st.success("Cukup klik sekali pada cell, lalu tekan ctrl + c untuk copy")
-        cari = st.text_input("🔍 Cari di Database:", "", key="cari_database_bawah")
+        
+        # Tambahkan label yang jelas dan jangan gunakan key yang memicu konflik
+        cari = st.text_input("🔍 Cari di Database:", key="cari_database_bawah")
+        
         if cari:
-            df_display = df_master[
+            # Filter data berdasarkan pencarian
+            df_filtered = df_master[
                 df_master['Nama Material'].str.contains(cari, case=False, regex=False) | 
                 df_master['Kode Material'].str.contains(cari, case=False, regex=False)
             ]
+            st.dataframe(df_filtered, use_container_width=True)
         else:
-            df_display = df_master
-        st.dataframe(df_display, use_container_width=True, height=400)
-    else:
-        st.warning("Database kosong.")
+            # Tampilkan 5 data awal saja jika tidak mencari agar tidak berat
+            st.dataframe(df_master.head(5), use_container_width=True)
