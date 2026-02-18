@@ -177,14 +177,14 @@ def get_column_config() -> Dict[str, Any]:
     return {
         "Kode Material": st.column_config.Column(
             disabled=True,
-            help="Material code from master database (read-only)"
+            help="Kode material yang terdaftar pada master database (read-only)"
         ),
         "Tipe Material": st.column_config.Column(
             disabled=True,
-            help="Material type from master database (read-only)"
+            help="Tipe material dari master database (read-only)"
         ),
         "Nama Material": st.column_config.TextColumn(
-            help="Material name from vendor"
+            help="Nama material dari vendor"
         ),
     }
 
