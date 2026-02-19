@@ -36,7 +36,7 @@ KOLOM_OPTIONS = KOLOM_HURUF + [f'A{c}' for c in KOLOM_HURUF]
 
 # ==================== PROCESSING CONFIGURATION ====================
 # Default skip rows for vendor file
-DEFAULT_SKIP_ROWS = 7
+DEFAULT_SKIP_ROWS = 6
 MAX_SKIP_ROWS = 50
 
 # Fuzzy matching threshold (0.0 - 1.0)
