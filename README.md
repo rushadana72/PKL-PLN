@@ -110,9 +110,9 @@ Aplikasi akan terbuka di browser pada `http://localhost:8501`.
 ### Output (Template PK SOSYS)
 | Kolom | Keterangan |
 |-------|------------|
-| `Kode Material` | Hasil pencocokan dari master |
-| `Nama Material` | Nama dari vendor |
-| `Tipe Material` | PLN / Tunai |
+| `Kode Material` | Kode Hasil pencocokan dari master |
+| `Nama Material` | Nama material |
+| `Tipe Material` | Tipe Hasil pencocokan dari master |
 | `Referensi Jumlah` | Volume referensi |
 | `Jumlah Material Gudang (PLN)` | Volume PLN |
 | `Jumlah Material Dipesan (Tunai)` | Volume tunai |
