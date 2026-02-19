@@ -51,27 +51,6 @@ def get_custom_css():
             letter-spacing: -0.02em;
         }
         
-        .main-title {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-        }
-        
-        .subtitle {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            font-weight: 400;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-        
         /* ==================== CARDS & CONTAINERS ==================== */
         .modern-card {
             background: var(--surface);
@@ -254,13 +233,135 @@ def get_custom_css():
         /* ==================== FOOTER ==================== */
         .footer {
             margin-top: 2.5rem;
-            padding: 1.5rem 0 1rem 0;
-            text-align: center;
+            padding: 1.25rem 0rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             color: var(--text-secondary);
             font-size: 0.8rem;
             border-top: 1px solid var(--border);
         }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-weight: 500;
+        }
+
+        /* ==================== NAVBAR ==================== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0d1832 60%, #0f2050 100%);
+            border-bottom: 1px solid rgba(37, 99, 235, 0.3);
+            box-shadow: 0 2px 24px rgba(37, 99, 235, 0.2);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            text-decoration: none;
+        }
+
+        .navbar-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            border-radius: 8px;
+            filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.6));
+        }
+
+        .navbar-logo-placeholder {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: white;
+            box-shadow: 0 0 12px rgba(37, 99, 235, 0.5);
+        }
+
+        .navbar-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.05em;
+        }
+
+        .navbar-title span {
+            color: #3b82f6;
+        }
+
+        .navbar-badge {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #3b82f6;
+            background: rgba(37, 99, 235, 0.15);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            border-radius: 999px;
+            padding: 0.15rem 0.6rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .navbar-badge .fa-bolt {
+            color: #ffc107; /* kuning */
+            text-shadow: 0 0 5px #ffd700
+        }
+
+
+        /* ==================== HEADER ==================== */
+        .header-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 3rem 0 0.5rem 0;
+            gap: 0.5rem;
+        }
+
+        .main-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            line-height: 1.3;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+            display: block;
+            text-align: center;
+        }
         
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
         .icon {
             margin-right: 0.5rem;
             color: var(--primary);

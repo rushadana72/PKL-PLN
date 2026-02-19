@@ -11,14 +11,49 @@ from typing import Dict, Any
 
 
 def render_header():
-    """Render the main header with title and subtitle"""
-    st.markdown("""
-    <div class="main-title">
-        <i class="fas fa-bolt"></i>
-        SOSYS Order Synchronization 
+    """Render navbar and main title"""
+    import base64
+    import os
+
+    # Try to load the logo
+    logo_b64 = ""
+    logo_paths = [
+        "assets/sosmate-logo.png",
+        "assets/favicon-logo.png",
+    ]
+    for path in logo_paths:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                logo_b64 = base64.b64encode(f.read()).decode()
+            break
+
+    logo_img_html = (
+        f'<img src="data:image/png;base64,{logo_b64}" class="navbar-logo" alt="SosMate Logo">'
+        if logo_b64
+        else '<div class="navbar-logo-placeholder"><i class="fas fa-bolt"></i></div>'
+    )
+
+    st.markdown(f"""
+    <div class="navbar">
+        <div class="navbar-brand">
+            {logo_img_html}
+            <span class="navbar-title">SOS<span>MATE</span></span>
+        </div>
+        <div class="navbar-badge">
+            <i class="fas fa-bolt"></i> PT PLN (Persero) UP3 Malang
+        </div>
+        
     </div>
-    <div class="subtitle">
-        Sinkronisasi Material RAB Vendor ke Template PK SOSYS
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="header-wrapper">
+        <div class="main-title">
+            SOSYS Automated Material Entry
+        </div>
+        <div class="subtitle">
+            Otomasi Konversi Material RAB Vendor ke Template PK SOSYS
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -190,11 +225,13 @@ def get_column_config() -> Dict[str, Any]:
 
 
 def render_footer():
-    """Render the footer"""
-    st.markdown("""
+    """Render the footer with left and right text"""
+    from datetime import datetime
+    year = datetime.now().year
+    st.markdown(f"""
     <div class="footer">
-        <i class="fas fa-bolt"></i> SOSYS Material Automation v2.1 | 
-        Built with Streamlit | 
-        <i class="fas fa-code"></i> Powered by AI
+        <div class="footer-left">
+            &copy; {year} SOSMATE | Developed by Construction Internship Team - Universitas Brawijaya
+        </div>
     </div>
     """, unsafe_allow_html=True)
