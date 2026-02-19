@@ -4,12 +4,9 @@ Contains all constants, default values, and configuration settings
 """
 
 # ==================== APP CONFIGURATION ====================
-#APP_TITLE = "SOSYS Material Automation"
-APP_TITLE = "SoSync"
-#APP_SUBTITLE = "AI-Powered Material Conversion System v2.1"
-APP_SUBTITLE = "Sinkronisasi Material RAB Vendor ke Template PK SOSYS"
-#APP_ICON = "⚡"
-APP_ICON = "sosmate-logo.png"
+APP_TITLE = "SOSMATE - Otomasi Material SOSYS"
+APP_SUBTITLE = "Otomasi Konversi Material RAB Vendor ke Template PK SOSYS"
+APP_ICON = "assets/favicon-logo.png"
 APP_LAYOUT = "centered"
 
 # ==================== FILE CONFIGURATION ====================
