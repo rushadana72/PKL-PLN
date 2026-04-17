@@ -1,6 +1,6 @@
 streamlit
-pandas==2.3.3
+pandas
 openpyxl==3.1.5
-numpy==2.1.1
+numpy
 xlsxwriter==3.2.9
 rapidfuzz==3.14.3
