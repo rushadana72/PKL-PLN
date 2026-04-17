@@ -357,9 +357,6 @@ def proses_data_vendor(
         )
         
         df_filtered = df_work[mask_valid].copy()
-        # FIX pandas 3.0: reset index setelah filtering agar index
-        # df_filtered mulai dari 0, sehingga hasil apply() tidak mismatch
-        df_filtered = df_filtered.reset_index(drop=True)
         
         logger.info(f"Data terfilter: {len(df_filtered)} dari {len(df_v)} baris")
         
@@ -374,39 +371,33 @@ def proses_data_vendor(
             Lookup material dengan prioritas:
             1. Exact match (langsung dari dict)
             2. Fuzzy match (jika exact tidak ketemu)
-            
-            Return dict agar kompatibel dengan pandas 2.x dan 3.x
-            (pd.Series dengan index integer kadang mismatch di pandas 3.0)
             """
             # Try exact match first
             if nama in master_dict:
-                return {
-                    'Kode Material': master_dict[nama]['Kode'],
-                    'Tipe Material': master_dict[nama]['Tipe'],
-                    'Match Score': None,
-                    'Matched With': None
-                }
+                return pd.Series([
+                    master_dict[nama]['Kode'],
+                    master_dict[nama]['Tipe'],
+                    None,  # match_score (None = exact match)
+                    None   # matched_with (None = exact match)
+                ])
             
             # Try fuzzy match
             matched_name, score = fuzzy_match_material(nama, master_dict, fuzzy_threshold)
             
             if matched_name:
-                return {
-                    'Kode Material': master_dict[matched_name]['Kode'],
-                    'Tipe Material': master_dict[matched_name]['Tipe'],
-                    'Match Score': score * 100,
-                    'Matched With': matched_name
-                }
+                return pd.Series([
+                    master_dict[matched_name]['Kode'],
+                    master_dict[matched_name]['Tipe'],
+                    score * 100,  # Convert to percentage
+                    matched_name
+                ])
             
             # No match found
-            return {'Kode Material': '-', 'Tipe Material': '-', 'Match Score': None, 'Matched With': None}
+            return pd.Series(['-', '-', None, None])
         
         # Apply lookup dengan fuzzy matching
-        # FIX pandas 3.0: gunakan pd.DataFrame constructor dari list of dicts
-        # agar hasilnya selalu berindeks 0..N, cocok dengan df_filtered yang sudah di-reset
-        lookup_results = pd.DataFrame(df_filtered['nama'].apply(lookup_with_fuzzy).tolist())
         df_filtered[['Kode Material', 'Tipe Material', 'Match Score', 'Matched With']] = \
-            lookup_results[['Kode Material', 'Tipe Material', 'Match Score', 'Matched With']].values
+            df_filtered['nama'].apply(lookup_with_fuzzy)
         
         # ==================== PLN vs TUNAI LOGIC ====================
         
