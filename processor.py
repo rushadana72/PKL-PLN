@@ -396,8 +396,9 @@ def proses_data_vendor(
             return pd.Series(['-', '-', None, None])
         
         # Apply lookup dengan fuzzy matching
-        df_filtered[['Kode Material', 'Tipe Material', 'Match Score', 'Matched With']] = \
-            df_filtered['nama'].apply(lookup_with_fuzzy)
+        lookup_results = df_filtered['nama'].apply(lookup_with_fuzzy)
+        lookup_results.columns = ['Kode Material', 'Tipe Material', 'Match Score', 'Matched With']
+        df_filtered = pd.concat([df_filtered, lookup_results], axis=1)
         
         # ==================== PLN vs TUNAI LOGIC ====================
         
